@@ -1,5 +1,6 @@
 import datetime
 import os
+import subprocess
 
 from keras import Model
 from keras.applications import VGG16
@@ -152,14 +153,18 @@ def __train_model(train_generator, test_generator, model, base_model, batch_size
 def train_network(dataset_path):
     image_size_x, image_size_y, batch_size, num_classes = 48, 48, 32, 4
 
-    train_generator, test_generator, trin_samples, test_samples = __create_image_generators(dataset_path, image_size_x,
+    train_generator, test_generator, train_samples, test_samples = __create_image_generators(dataset_path, image_size_x,
                                                                                              image_size_y, batch_size)
     model, base_model = __create_model(image_size_x, image_size_y, num_classes)
-    __train_model(train_generator, test_generator, model, base_model, batch_size, 3000, 1000, "log-{}".format(datetime.datetime.now()))
+    __train_model(train_generator, test_generator, model, base_model, batch_size, train_samples, test_samples,
+                  os.path.join("logs", "log-{}".format(datetime.datetime.now()).replace(" ", "_")))
 
 
-def predict_image():
-    pass
-
-
-train_network("splitted-dataset")
+tensorboard = None
+try:
+    tensorboard = subprocess.Popen(["tensorboard", "--host localhost", "--logdir=log"])
+    train_network("splitted-dataset")
+    tensorboard.wait()
+finally:
+    if tensorboard:
+        tensorboard.kill()
