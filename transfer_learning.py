@@ -37,7 +37,6 @@ def __create_image_generators(dataset_path, image_size_x, image_size_y, batch_si
                                                         batch_size=batch_size,
                                                         class_mode='categorical')
 
-
     # save_to_dir=os.path.join(os.path.abspath(train_data_dir), '../preview')
     # save_prefix='aug',
     # save_format='jpeg')
@@ -90,12 +89,12 @@ def train_classification_block(model, base_model, train_generator, test_generato
 
     print("\nStarting to train simple CNN\n")
     # Train Simple CNN
-    history = model.fit_generator(train_generator,
-                                  steps_per_epoch=100,
-                                  epochs=5,
-                                  validation_data=test_generator,
-                                  validation_steps=100,
-                                  callbacks=callbacks_list)
+    model.fit_generator(train_generator,
+                        steps_per_epoch=100,
+                        epochs=5,
+                        validation_data=test_generator,
+                        validation_steps=100,
+                        callbacks=callbacks_list)
 
 
 def train_fine_tuning(model, delimiting_layer, train_generator, test_generator, batch_size, train_sample, test_sample, log_dir, best_model_path):
@@ -117,9 +116,6 @@ def train_fine_tuning(model, delimiting_layer, train_generator, test_generator, 
     for layer in model.layers[delimiting_layer:]:
         layer.trainable = True
 
-
-    # compile the model with a SGD/momentum optimizer
-    # and a very slow learning rate.
     model.compile(optimizer="nadam", loss='categorical_crossentropy', metrics=['accuracy'])
 
     # save weights of best training epoch: monitor either val_loss or val_acc
@@ -144,17 +140,22 @@ def __train_model(train_generator, test_generator, model, base_model, batch_size
         os.mkdir(os.path.abspath(log_dir))
 
     best_model_path = os.path.join(log_dir, "best_model.h5py")
+
     train_classification_block(model, base_model, train_generator, test_generator, batch_size,
                                train_samples, test_samples, log_dir, best_model_path)
     train_fine_tuning(model, 16, train_generator, test_generator, batch_size,
-                                 train_samples, test_samples, log_dir, best_model_path)
+                      train_samples, test_samples, log_dir, best_model_path)
 
 
 def train_network(dataset_path):
-    image_size_x, image_size_y, batch_size, num_classes = 48, 48, 32, 4
+    num_classes = len(os.listdir(os.path.join(dataset_path, "train")))
+
+    image_size_x, image_size_y, batch_size = 48, 48, 32
 
     train_generator, test_generator, train_samples, test_samples = __create_image_generators(dataset_path, image_size_x,
                                                                                              image_size_y, batch_size)
+    if not os.path.exists("logs"):
+        os.mkdir("logs")
     model, base_model = __create_model(image_size_x, image_size_y, num_classes)
     __train_model(train_generator, test_generator, model, base_model, batch_size, train_samples, test_samples,
                   os.path.join("logs", "log-{}".format(datetime.datetime.now()).replace(" ", "_")))
@@ -163,7 +164,7 @@ def train_network(dataset_path):
 tensorboard = None
 try:
     tensorboard = subprocess.Popen(["tensorboard", "--host localhost", "--logdir=log"])
-    train_network("splitted-dataset")
+    train_network("cats-and-dogs-dataset")
     tensorboard.wait()
 finally:
     if tensorboard:
